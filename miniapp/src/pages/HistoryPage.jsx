@@ -1,19 +1,33 @@
 import React, { useEffect, useState } from 'react'
+import { useApp } from '../App'
 import Spinner from '../components/Spinner'
-import { getMyProfile } from '../api'
+import { getToken } from '../api'
 
-// History uses the quest_results from the profile endpoint
-// In real app you'd add GET /players/me/history endpoint
+const BASE = import.meta.env.VITE_API_URL || ''
+
+async function getHistory() {
+  const token = getToken()
+  const res = await fetch(`${BASE}/players/me/history?limit=50`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
+  if (!res.ok) throw new Error('HTTP ' + res.status)
+  return res.json()
+}
+
 export default function HistoryPage() {
+  const { player } = useApp()
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Stub: in full impl this calls GET /players/me/history
-    // For MVP we show the placeholder with structure ready
-    setLoading(false)
-    setItems([])
+    getHistory()
+      .then((r) => setItems(r.history || []))
+      .catch(() => setItems([]))
+      .finally(() => setLoading(false))
   }, [])
+
+  const fmtDate = (d) =>
+    d ? new Date(d).toLocaleDateString('uk', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''
 
   return (
     <div className="page">
@@ -22,7 +36,9 @@ export default function HistoryPage() {
       </div>
 
       {loading ? (
-        <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 40 }}><Spinner /></div>
+        <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 40 }}>
+          <Spinner />
+        </div>
       ) : items.length === 0 ? (
         <div className="card">
           <div className="empty-list">
@@ -33,20 +49,26 @@ export default function HistoryPage() {
         </div>
       ) : (
         <div className="card">
-          {items.map((item, i) => (
-            <div key={i} className="history-item">
-              <div className={`history-icon ${item.is_winner ? 'win' : 'lose'}`}>
-                {item.is_winner ? '🏆' : '👀'}
+          {items.map((item, i) => {
+            const isWin  = item.type === 'quest' && item.is_winner
+            const isPrize = item.type === 'prize'
+            return (
+              <div key={i} className="history-item">
+                <div className={`history-icon ${isWin ? 'win' : isPrize ? 'prize' : 'lose'}`}>
+                  {item.emoji}
+                </div>
+                <div className="history-body">
+                  <div className="history-title">{item.title}</div>
+                  <div className="history-sub">
+                    {item.subtitle} · {fmtDate(item.date)}
+                  </div>
+                </div>
+                {item.xp_earned > 0 && (
+                  <div className="history-xp">+{item.xp_earned} XP</div>
+                )}
               </div>
-              <div className="history-body">
-                <div className="history-title">{item.quest_title}</div>
-                <div className="history-sub">{item.date}</div>
-              </div>
-              {item.is_winner && (
-                <div className="history-xp">+{item.xp_earned} XP</div>
-              )}
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>

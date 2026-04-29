@@ -13,8 +13,6 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
@@ -29,8 +27,6 @@ services:
     command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
-    ports:
-      - "6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -40,8 +36,8 @@ services:
   # FastAPI бекенд
   api:
     build:
-      context: ./api
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: api/Dockerfile
     container_name: epicteam_api
     restart: unless-stopped
     env_file: .env
@@ -52,30 +48,41 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    volumes:
-      - ./api:/app
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    command: >-
+      sh -c "alembic upgrade head && uvicorn api.main:app --host 0.0.0.0 --port 8000"
+
+  # Telegram MiniApp (React/Nginx)
+  miniapp:
+    build:
+      context: ./miniapp
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${MINIAPP_API_URL:-https://your-api-host.com}
+    container_name: epicteam_miniapp
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
 
   # Telegram бот
   bot:
     build:
-      context: ./bot
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: bot/Dockerfile
     container_name: epicteam_bot
     restart: unless-stopped
     env_file: .env
     depends_on:
       - api
       - redis
-    volumes:
-      - ./bot:/app
-    command: python main.py
+    command: python -m bot.main
 
   # APScheduler
   scheduler:
     build:
-      context: ./scheduler
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: scheduler/Dockerfile
     container_name: epicteam_scheduler
     restart: unless-stopped
     env_file: .env
@@ -83,9 +90,7 @@ services:
       - api
       - redis
       - db
-    volumes:
-      - ./scheduler:/app
-    command: python main.py
+    command: python -m scheduler.main
 
 volumes:
   postgres_data:
