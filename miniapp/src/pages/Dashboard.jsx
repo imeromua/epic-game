@@ -3,17 +3,31 @@ import { useApp } from '../App'
 import Spinner from '../components/Spinner'
 import { getActiveQuest, getMyProfile } from '../api'
 
-const RANK_KEYS = {
-  'Новачок':          'newbie',
+// rank може прийти як lowercase ('newbie') або українською назвою ('Новачок')
+// цей мап покриває обидва варіанти
+const TO_KEY = {
+  'newbie':           'newbie',
+  'scout':            'scout',
+  'expert':           'expert',
+  'master':           'master',
+  'legend':           'legend',
+  'Новачок':         'newbie',
   'Слідопит':         'scout',
   'Знавець Залу':     'expert',
   'Майстер Свіжості': 'master',
-  'Легенда':          'legend',
+  'Легенда':           'legend',
 }
 
-const XP_NEXT = { newbie: 101, scout: 301, expert: 601, master: 1000, legend: 1000 }
-const XP_FROM = { newbie: 0,   scout: 101, expert: 301, master: 601,  legend: 1000 }
+const RANK_DISPLAY = {
+  newbie:  'Новачок',
+  scout:   'Слідопит',
+  expert:  'Знавець Залу',
+  master:  'Майстер Свіжості',
+  legend:  'Легенда',
+}
 
+const XP_NEXT = { newbie: 100, scout: 300, expert: 600, master: 1000, legend: 9999 }
+const XP_FROM = { newbie: 0,   scout: 100, expert: 300, master: 600,  legend: 1000 }
 const RANK_EMOJIS = { newbie: '🌱', scout: '🔍', expert: '🎯', master: '⭐', legend: '👑' }
 
 export default function Dashboard() {
@@ -37,12 +51,16 @@ export default function Dashboard() {
     </div>
   )
 
-  const data = profile || player
-  const rankKey = RANK_KEYS[data?.rank] || 'newbie'
-  const xp = data?.xp || 0
+  const data    = profile || player
+  const rankKey = TO_KEY[data?.rank] || 'newbie'
+
+  // rank_display: profile повертає rank_display; auth-об'`єкт має rank як дисплей назву
+  const rankDisplay = data?.rank_display || RANK_DISPLAY[rankKey] || 'Новачок'
+
+  const xp     = data?.xp || 0
   const xpFrom = XP_FROM[rankKey] || 0
-  const xpTo = XP_NEXT[rankKey] || 1000
-  const xpPct = Math.min(100, Math.round(((xp - xpFrom) / (xpTo - xpFrom)) * 100))
+  const xpTo   = XP_NEXT[rankKey] || 1000
+  const xpPct  = Math.min(100, Math.round(((xp - xpFrom) / (xpTo - xpFrom)) * 100))
 
   return (
     <div className="page">
@@ -50,7 +68,7 @@ export default function Dashboard() {
       <div className={`rank-card rank-${rankKey}-card`}>
         <div className="rank-badge-icon">{RANK_EMOJIS[rankKey]}</div>
         <div className="rank-card-label">Твій ранг</div>
-        <div className="rank-card-name">{data?.rank || 'Новачок'}</div>
+        <div className="rank-card-name">{rankDisplay}</div>
         <div className="rank-card-player">{data?.name}</div>
         <div className="rank-card-xp">
           <div className="xp-bar-bg">
@@ -76,7 +94,9 @@ export default function Dashboard() {
           <div className="stat-label">Серія днів</div>
         </div>
         <div className="stat-card">
-          <div className="stat-value" style={{ color: 'var(--purple)' }}>💎{data?.legendary_wins ?? 0}</div>
+          <div className="stat-value" style={{ color: 'var(--purple)' }}>
+            💎{data?.legendary_wins ?? 0}
+          </div>
           <div className="stat-label">Легенд.</div>
         </div>
       </div>
@@ -107,7 +127,8 @@ export default function Dashboard() {
       <p className="section-title">Про рейтинг</p>
       <div className="card" style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6 }}>
         Виконуй квести першим — отримуй XP і піднімайся в рейтингу команди.
-        Щомісяця переможець отримує <span style={{ color: 'var(--gold)', fontWeight: 700 }}>💎 Легендарну нагороду</span>.
+        Щомісяця переможець отримує
+        <span style={{ color: 'var(--gold)', fontWeight: 700 }}> 💎 Легендарну нагороду</span>.
       </div>
     </div>
   )

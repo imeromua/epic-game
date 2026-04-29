@@ -1,33 +1,27 @@
 import React, { useEffect, useState } from 'react'
-import { useApp } from '../App'
 import Spinner from '../components/Spinner'
-import { getToken } from '../api'
-
-const BASE = import.meta.env.VITE_API_URL || ''
-
-async function getHistory() {
-  const token = getToken()
-  const res = await fetch(`${BASE}/players/me/history?limit=50`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  })
-  if (!res.ok) throw new Error('HTTP ' + res.status)
-  return res.json()
-}
+import { getHistory } from '../api'
 
 export default function HistoryPage() {
-  const { player } = useApp()
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    getHistory()
+    getHistory(50)
       .then((r) => setItems(r.history || []))
       .catch(() => setItems([]))
       .finally(() => setLoading(false))
   }, [])
 
   const fmtDate = (d) =>
-    d ? new Date(d).toLocaleDateString('uk', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''
+    d
+      ? new Date(d).toLocaleDateString('uk', {
+          day: 'numeric',
+          month: 'short',
+          hour: '2-digit',
+          minute: '2-digit',
+        })
+      : ''
 
   return (
     <div className="page">

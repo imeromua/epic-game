@@ -27,29 +27,53 @@ async function req(method, path, body = null) {
   return res.json()
 }
 
+// ============================================================
 // AUTH
+// ============================================================
 export const signIn = (initData) =>
   req('POST', '/auth/signin', { init_data: initData })
 
-// Unified init — works in dev (no Telegram) and production
+/**
+ * authInit — викликається при старті MiniApp.
+ * Повертає об'єкт у формі PlayerProfile (не raw AuthResponse),
+ * щоб App.jsx та Dashboard.jsx працювали з одним контрактом.
+ */
 export const authInit = async (tgUser) => {
   const tg = window.Telegram?.WebApp
-  // In real Telegram — use real initData (has HMAC signature)
-  // In dev browser — pass fake initData string (backend should allow in dev mode)
   let initData = tg?.initData || ''
   if (!initData) {
     // Dev fallback: encode user object
     initData = `user=${encodeURIComponent(JSON.stringify(tgUser))}&hash=dev_bypass`
   }
+
   const data = await signIn(initData)
   setToken(data.access_token)
-  return data
+
+  // AuthResponse має rank як українську назву (rank_display з бекенду).
+  // Нормалізуємо до PlayerProfile-сумісного об'єкта.
+  return {
+    id:              data.player_id,
+    name:            data.name,
+    xp:              data.xp,
+    rank:            data.rank,          // може бути і 'newbie', і 'Новачок' — Dashboard впорається
+    rank_display:    data.rank,          // завжди є після цього нормалізатора
+    streak:          0,
+    quests_won:      0,
+    legendary_wins:  0,
+    is_admin:        data.role === 'admin',
+    is_new:          data.is_new,
+  }
 }
 
+// ============================================================
 // PLAYERS
+// ============================================================
 export const getMyProfile = () => req('GET', '/players/me')
+export const getHistory   = (limit = 50) => req('GET', `/players/me/history?limit=${limit}`)
 
+// ============================================================
 // QUESTS
+// ============================================================
 export const getActiveQuest = () => req('GET', '/quests/active')
 
 export const submitTextAnswer = (questId, answer) =>
@@ -65,11 +89,15 @@ export const submitPhotoAnswer = (questId, file) => {
   }).then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(new Error(e.detail))))
 }
 
+// ============================================================
 // PRIZES
-export const getPrizes = () => req('GET', '/prizes/')
-export const getMyTransactions = () => req('GET', '/prizes/my-transactions')
-export const redeemPrize = (prizeId) => req('POST', `/prizes/${prizeId}/redeem`)
+// ============================================================
+export const getPrizes           = () => req('GET', '/prizes/')
+export const getMyTransactions   = () => req('GET', '/prizes/my-transactions')
+export const redeemPrize         = (prizeId) => req('POST', `/prizes/${prizeId}/redeem`)
 
+// ============================================================
 // LEADERBOARD
-export const getLeaderboard = () => req('GET', '/leaderboard/')
-export const getLeaderboardWeekly = () => req('GET', '/leaderboard/weekly')
+// ============================================================
+export const getLeaderboard        = () => req('GET', '/leaderboard/')
+export const getLeaderboardWeekly  = () => req('GET', '/leaderboard/weekly')

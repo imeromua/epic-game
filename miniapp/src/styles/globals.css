@@ -641,7 +641,16 @@ a { color: inherit; text-decoration: none; }
 }
 
 .lb-info { flex: 1; min-width: 0; }
-.lb-info-name { font-size: 14px; font-weight: 600; truncate: ellipsis; }
+
+/* FIX: валідний CSS truncate замість truncate: ellipsis */
+.lb-info-name {
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .lb-info-rank { font-size: 11px; color: var(--muted); margin-top: 1px; }
 
 .lb-xp {
